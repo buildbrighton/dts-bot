@@ -60,29 +60,24 @@ void setup(void)
   // Dump the configuration of the rf unit for debugging
   //
   radio.printDetails();
-
-  setLeds(true, false, false, false);
-  Serial.println(msg[1]);  
-  setLeds(false, false, false, true);
-  Serial.println(msg[1]);
 }
 
 //
 // Loop
 //
 
-signed char thing = -50;
 
 void loop(void)
 {
-  unsigned char msg[] = {
-    1, 2, 3, 4, -5, thing  };
-
-
-  thing++;
-
-  delay(10);
-
+  left();
+  delay(1000);
+  right();
+  delay(2000);
+  left();
+  delay(1000);
+  zero();
+  waveArms();
+  delay(2000);
 }
 
 void setLeds(byte eyes){
@@ -107,25 +102,40 @@ void sendBot(){
 }
 
 void left(){
+  Serial.println("Turn Left");
   setMotors(-127, 127, 0, 0);
+  sendBot();
 }
 
 void right(){
+  Serial.println("Turn Right");
   setMotors(127, -127, 0, 0);
+  sendBot();
 }
 
-void waveArm(){
+void waveArms(){
+  Serial.println("Left arm");
   setMotors(0, 0, 127, 0);
+  sendBot();
   delay(500);
   setMotors(0, 0, -127, 0);
+  sendBot();
+  delay(500);
+  Serial.println("Right arm");
+  setMotors(0, 0, 0, 127);
+  sendBot();
+  delay(500);
+  setMotors(0, 0, 0, -127);
+  sendBot();
   delay(500);
   zero();
 }
 
 void zero(){
+  Serial.println("All off");
   setLeds(0);
   setMotors(0, 0, 0, 0);
+  sendBot();
 }
 
 // vim:ai:cin:sts=2 sw=2 ft=cpp
-
