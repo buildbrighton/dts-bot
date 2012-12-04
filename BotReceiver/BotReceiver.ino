@@ -103,15 +103,20 @@ const int tick_duration = 5;
 
 void loop(void)
 {
+  if ( counter % 1000 == 0 )
+    Serial.println("tick: counter % 1000 == 0");
 
   if ( millis() % 1000 < 500 ) {
-     both_eyes_red();
+    //Serial.println("Eyes to red");
+    both_eyes_red();
   } else if ( millis() % 1000 > 500 ) {
-     both_eyes_blue();
+    //Serial.println("Eyes to blue");
+    both_eyes_blue();
   }
 
   // if there is data ready
   if ( radio.available() ) {
+    Serial.println("Data received");
     // Dump the payloads until we've gotten everything
     bool done = false;
     while (!done){
@@ -134,13 +139,15 @@ void loop(void)
   }
 
   if ( mode == SYNC ) {
-     if ( last_mode == IDLE)
+     if ( last_mode == IDLE) {
        Serial.println("moving robot");
-     move_robot();
+       move_robot();
+     }
   } else {
-     if ( last_mode == SYNC )
+     if ( last_mode == SYNC ) {
        Serial.println("stopping robot");
-     stop_robot();
+       stop_robot();
+     }
   }
   
   counter++;
@@ -174,62 +181,63 @@ void both_eyes_red() {
 void move_robot() {
   //Serial.print("delay: ");
   //Serial.println(millis() - loop_time);
+  return;
   if ( millis() - last_tick_millis > tick_duration ) {
     //Serial.println("tick");
     last_tick_millis = millis();
 
     if ( rcvd_wheel_l > 0 ) {
-       Serial.print("left wheel forward");
+       Serial.println("left wheel forward");
        digitalWrite(wheel_left[0], HIGH);
        digitalWrite(wheel_left[1], LOW);
     } else if ( rcvd_wheel_l < 0 ) {
-       Serial.print("left wheel back");
+       Serial.println("left wheel back");
        digitalWrite(wheel_left[0], LOW);
        digitalWrite(wheel_left[1], HIGH);
     } else {
-       Serial.print("left wheel stop");
+       Serial.println("left wheel stop");
        digitalWrite(wheel_left[0], LOW);
        digitalWrite(wheel_left[1], LOW);
     }
 
     if ( rcvd_wheel_r > 0 ) {
-       Serial.print("right wheel forward");
+       Serial.println("right wheel forward");
        digitalWrite(wheel_right[0], HIGH);
        digitalWrite(wheel_right[1], LOW);
     } else if ( rcvd_wheel_r < 0 ) {
-       Serial.print("right wheel back");
+       Serial.println("right wheel back");
        digitalWrite(wheel_right[0], LOW);
        digitalWrite(wheel_right[1], HIGH);
     } else {
-       Serial.print("right wheel stop");
+       Serial.println("right wheel stop");
        digitalWrite(wheel_right[0], LOW);
        digitalWrite(wheel_right[1], LOW);
     }
 
     if ( rcvd_arm_l > 0 ) {
-       Serial.print("left arm up");
+       Serial.println("left arm up");
        digitalWrite(arm_left[0], HIGH);
        digitalWrite(arm_left[1], LOW);
     } else if ( rcvd_arm_l < 0 ) {
-       Serial.print("left arm down");
+       Serial.println("left arm down");
        digitalWrite(arm_left[0], LOW);
        digitalWrite(arm_left[1], HIGH);
     } else {
-       Serial.print("left arm stop");
+       Serial.println("left arm stop");
        digitalWrite(arm_left[0], LOW);
        digitalWrite(arm_left[1], LOW);
     }
 
     if ( rcvd_arm_r > 0 ) {
-       Serial.print("right arm up");
+       Serial.println("right arm up");
        digitalWrite(arm_right[0], HIGH);
        digitalWrite(arm_right[1], LOW);
     } else if ( rcvd_arm_r < 0 ) {
-       Serial.print("right arm down");
+       Serial.println("right arm down");
        digitalWrite(arm_right[0], LOW);
        digitalWrite(arm_right[1], HIGH);
     } else {
-       Serial.print("right arm stop");
+       Serial.println("right arm stop");
        digitalWrite(arm_right[0], LOW);
        digitalWrite(arm_right[1], LOW);
     }
@@ -238,6 +246,7 @@ void move_robot() {
 }
 
 void stop_robot() {
+  return;
   digitalWrite(wheel_left[0], LOW); 
   digitalWrite(wheel_left[1], LOW); 
   digitalWrite(wheel_right[0], LOW); 
