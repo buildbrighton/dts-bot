@@ -103,20 +103,18 @@ const int tick_duration = 5;
 
 void loop(void)
 {
-  if ( counter % 1000 == 0 )
-    Serial.println("tick: counter % 1000 == 0");
-
-  if ( millis() % 1000 < 500 ) {
-    //Serial.println("Eyes to red");
-    both_eyes_red();
-  } else if ( millis() % 1000 > 500 ) {
-    //Serial.println("Eyes to blue");
+  if ( counter % 10000 == 0 ) {
+    Serial.println("tick: counter % 10000 == 0");
+    //both_eyes_red();
+    counter = 0;
+  } else if ( counter % 10000 == 5000 ) {
     both_eyes_blue();
   }
 
   // if there is data ready
   if ( radio.available() ) {
     Serial.println("Data received");
+    both_eyes_red();
     // Dump the payloads until we've gotten everything
     bool done = false;
     while (!done){
