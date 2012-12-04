@@ -5,6 +5,12 @@
 #include "RF24.h"
 #include "printf.h"
 
+#define LEFT_RED   5
+#define LEFT_BLUE  6
+#define RIGHT_RED  7
+#define RIGHT_BLUE 8
+
+
 //
 // Hardware configuration
 //
@@ -43,6 +49,12 @@ void setup(void)
     pinMode(arm_left[i], OUTPUT);
     pinMode(arm_right[i], OUTPUT);
   }
+
+  // setup LEDs
+  pinMode(LEFT_RED, OUTPUT); digitalWrite(LEFT_RED, HIGH);
+  pinMode(LEFT_BLUE, OUTPUT); digitalWrite(LEFT_BLUE, HIGH);
+  pinMode(RIGHT_RED, OUTPUT); digitalWrite(RIGHT_RED, HIGH);
+  pinMode(RIGHT_BLUE, OUTPUT); digitalWrite(RIGHT_BLUE, HIGH);
 
   // debugging
   Serial.begin(57600);
@@ -92,6 +104,12 @@ const int tick_duration = 5;
 void loop(void)
 {
 
+  if ( millis() % 1000 < 500 ) {
+     both_eyes_red();
+  } else if ( millis() % 1000 > 500 ) {
+     both_eyes_blue();
+  }
+
   // if there is data ready
   if ( radio.available() ) {
     // Dump the payloads until we've gotten everything
@@ -137,6 +155,20 @@ void loop(void)
     mode = IDLE;
   }
 
+}
+
+void both_eyes_blue() {
+  digitalWrite(LEFT_BLUE, LOW);
+  digitalWrite(RIGHT_BLUE, LOW);
+  digitalWrite(LEFT_RED, HIGH);
+  digitalWrite(RIGHT_RED, HIGH);
+}
+
+void both_eyes_red() {
+  digitalWrite(LEFT_BLUE, HIGH);
+  digitalWrite(RIGHT_BLUE, HIGH);
+  digitalWrite(LEFT_RED, LOW);
+  digitalWrite(RIGHT_RED, LOW);
 }
 
 void move_robot() {
