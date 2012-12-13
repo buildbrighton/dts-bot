@@ -5,12 +5,6 @@
 #include "RF24.h"
 #include "printf.h"
 
-#define LEFT_RED   5
-#define LEFT_BLUE  6
-#define RIGHT_RED  7
-#define RIGHT_BLUE 8
-
-
 //
 // Hardware configuration
 //
@@ -21,14 +15,6 @@ RF24 radio(9,10);
 
 // Radio pipe addresses for the 2 nodes to communicate.
 const uint64_t addr = 0xFEFEFEFEE1LL;
-
-//int wheel_left[]  = {11, 12};
-//int wheel_right[] = {13, 14};
-int wheel_left[]  = {3, 4};
-int wheel_right[] = {A0, A1};
-
-int arm_left[]  = {A2, A3};
-int arm_right[] = {A4, A5};
 
 enum eMode{
   IDLE = 0,
@@ -42,31 +28,55 @@ unsigned long lastMsg = idleTime;//start up idling
 
 unsigned char rec_buffer[6]; // our packet: {id}{leds}{motorL}{motorR}{armL}{armR}
 
+// Pin connected to latch pin (ST_CP) of 74HC595
+const int latchPin = 4;
+// Pin connected to clock pin (SH_CP) of 74HC595
+const int clockPin = 2;
+// Pin connected to Data in (DS) of 74HC595
+const int dataPin = 7;
+
+uint8_t leds = 0xff;  // common anode LEDs, 1 == off
+uint8_t motors = 0x00;
+
+void registerWrite(uint8_t first, uint8_t last) {
+  // the bits you want to send. Use an unsigned int,
+  // so you can use all 16 bits:
+  unsigned int bitsToSend = 0;    
+
+  // turn off the output
+  digitalWrite(latchPin, LOW);
+
+  // shift the bytes out:
+  shiftOut(dataPin, clockPin, MSBFIRST, first);
+  shiftOut(dataPin, clockPin, MSBFIRST, last);
+
+  // turn on the output 
+  digitalWrite(latchPin, HIGH);
+}
+
 void setup(void)
 {
-  // Setup motors
-  for(int i = 0; i < 2; i++){
-    pinMode(wheel_left[i], OUTPUT);
-    pinMode(wheel_right[i], OUTPUT);
-    pinMode(arm_left[i], OUTPUT);
-    pinMode(arm_right[i], OUTPUT);
-  }
-
-  // setup LEDs
-  pinMode(LEFT_RED, OUTPUT); digitalWrite(LEFT_RED, HIGH);
-  pinMode(LEFT_BLUE, OUTPUT); digitalWrite(LEFT_BLUE, HIGH);
-  pinMode(RIGHT_RED, OUTPUT); digitalWrite(RIGHT_RED, HIGH);
-  pinMode(RIGHT_BLUE, OUTPUT); digitalWrite(RIGHT_BLUE, HIGH);
-
   // debugging
   Serial.begin(57600);
   printf_begin();
 
-  printf("\n\rDreamThinkSpeakRobot v0.1\n\r");
+  printf("\n\rDreamThinkSpeakRobot v0.2\n\r");
+
+  // Setup shift reg
+  Serial.println("Setting up shift reg");
+  pinMode(latchPin, OUTPUT);
+  pinMode(dataPin, OUTPUT);  
+  pinMode(clockPin, OUTPUT);
+
+  // Setup motors & LEDs 
+  Serial.println("Initialising LEDs and Motors");
+  registerWrite(leds, motors);
+
 
   //
   // Setup and configure rf radio
   //
+  Serial.println("Initialising RF24");
 
   radio.begin();
   radio.setChannel(0x69);
@@ -103,20 +113,26 @@ unsigned long last_tick_millis = 0;
 
 const int tick_duration = 5;
 
+int statusTimer = 0;
+
 void loop(void)
 {
-  if ( counter % 10000 == 0 ) {
-    Serial.println("tick: counter % 10000 == 0");
-    //both_eyes_red();
-    counter = 0;
-  } else if ( counter % 10000 == 5000 ) {
-    both_eyes_blue();
+  if ( counter % 10000 == 0 ) { 
+     Serial.println("tick: counter % 10000 == 0");
+     counter = 0;
+  }
+  if ( counter % 10000 < 5000 and statusTimer == 0 ) {
+    bothEyesRed();
+  } else if ( counter % 10000 >= 5000 and statusTimer == 0 ) {
+    bothEyesBlue();
   }
 
   // if there is data ready
   if ( radio.available() ) {
     Serial.println("Data received");
-    both_eyes_red();
+    bothEyesGreen();
+    statusTimer = 100;
+  
     // Dump the payloads until we've gotten everything
     bool done = false;
     while (!done){
@@ -147,7 +163,7 @@ void loop(void)
      if ( last_mode == SYNC ) {
        Serial.println("stopping robot");
      }
-     stop_robot();
+     stopRobot();
   }
   
   counter++;
@@ -162,20 +178,22 @@ void loop(void)
     mode = IDLE;
   }
 
+  if (statusTimer > 0) 
+    statusTimer--;
+
+  registerWrite(leds, motors);
+
+}
+void bothEyesRed() {
+  leds = 0b01110111;
 }
 
-void both_eyes_blue() {
-  digitalWrite(LEFT_BLUE, LOW);
-  digitalWrite(RIGHT_BLUE, LOW);
-  digitalWrite(LEFT_RED, HIGH);
-  digitalWrite(RIGHT_RED, HIGH);
+void bothEyesGreen() {
+  leds = 0b10111011;
 }
 
-void both_eyes_red() {
-  digitalWrite(LEFT_BLUE, HIGH);
-  digitalWrite(RIGHT_BLUE, HIGH);
-  digitalWrite(LEFT_RED, LOW);
-  digitalWrite(RIGHT_RED, LOW);
+void bothEyesBlue() {
+  leds = 0b11011101;
 }
 
 void move_robot() {
@@ -183,78 +201,106 @@ void move_robot() {
   //Serial.println(millis() - loop_time);
   //return;
   if ( millis() - last_tick_millis > tick_duration ) {
-    //Serial.println("tick");
     last_tick_millis = millis();
 
     if ( rcvd_wheel_l > 0 ) {
-       Serial.println("left wheel forward");
-       digitalWrite(wheel_left[0], HIGH);
-       digitalWrite(wheel_left[1], LOW);
+       leftWheelForward();
     } else if ( rcvd_wheel_l < 0 ) {
-       Serial.println("left wheel back");
-       digitalWrite(wheel_left[0], LOW);
-       digitalWrite(wheel_left[1], HIGH);
+       leftWheelBack();
     } else {
-       Serial.println("left wheel stop");
-       digitalWrite(wheel_left[0], LOW);
-       digitalWrite(wheel_left[1], LOW);
+       leftWheelStop();
     }
 
     if ( rcvd_wheel_r > 0 ) {
-       Serial.println("right wheel forward");
-       digitalWrite(wheel_right[0], HIGH);
-       digitalWrite(wheel_right[1], LOW);
+       rightWheelForward();
     } else if ( rcvd_wheel_r < 0 ) {
-       Serial.println("right wheel back");
-       digitalWrite(wheel_right[0], LOW);
-       digitalWrite(wheel_right[1], HIGH);
+       rightWheelBack();
     } else {
-       Serial.println("right wheel stop");
-       digitalWrite(wheel_right[0], LOW);
-       digitalWrite(wheel_right[1], LOW);
+       rightWheelStop();
     }
 
     if ( rcvd_arm_l > 0 ) {
-       Serial.println("left arm up");
-       digitalWrite(arm_left[0], HIGH);
-       digitalWrite(arm_left[1], LOW);
+       leftArmUp();
     } else if ( rcvd_arm_l < 0 ) {
-       Serial.println("left arm down");
-       digitalWrite(arm_left[0], LOW);
-       digitalWrite(arm_left[1], HIGH);
+       leftArmDown();
     } else {
-       Serial.println("left arm stop");
-       digitalWrite(arm_left[0], LOW);
-       digitalWrite(arm_left[1], LOW);
+       leftArmStop();
     }
 
     if ( rcvd_arm_r > 0 ) {
-       Serial.println("right arm up");
-       digitalWrite(arm_right[0], HIGH);
-       digitalWrite(arm_right[1], LOW);
+       rightArmUp();
     } else if ( rcvd_arm_r < 0 ) {
-       Serial.println("right arm down");
-       digitalWrite(arm_right[0], LOW);
-       digitalWrite(arm_right[1], HIGH);
+       rightArmDown();
     } else {
-       Serial.println("right arm stop");
-       digitalWrite(arm_right[0], LOW);
-       digitalWrite(arm_right[1], LOW);
+       rightArmStop();
     }
 
   } 
 }
 
-void stop_robot() {
+void leftWheelForward() {
+  motors &= ~(1 << 5);
+  motors |=  (1 << 4);
+}
+
+void leftWheelBack() {
+  motors &= ~(1 << 4);
+  motors |=  (1 << 5);
+}
+
+void leftWheelStop() {
+  motors &= ~(1 << 5);
+  motors &= ~(1 << 4);
+}
+
+void leftArmUp() {
+  motors &= ~(1 << 7);
+  motors |=  (1 << 6);
+}
+
+void leftArmDown() {
+  motors &= ~(1 << 6);
+  motors |=  (1 << 7);
+}
+
+void leftArmStop() {
+  motors &= ~(1 << 7);
+  motors &= ~(1 << 6);
+}
+
+void rightWheelForward() {
+  motors &= ~(1 << 1);
+  motors |= 1;
+}
+
+void rightWheelBack() {
+  motors &= ~(1);
+  motors |=  (1 << 1);
+}
+
+void rightWheelStop() {
+  motors &= ~(1 << 1);
+  motors &= ~(1);
+}
+
+void rightArmUp() {
+  motors &= ~(1 << 3);
+  motors |=  (1 << 2);
+}
+
+void rightArmDown() {
+  motors &= ~(1 << 2);
+  motors |=  (1 << 3);
+}
+
+void rightArmStop() {
+  motors &= ~(1 << 3);
+  motors &= ~(1 << 2);
+}
+
+void stopRobot() {
   //return;
-  digitalWrite(wheel_left[0], LOW); 
-  digitalWrite(wheel_left[1], LOW); 
-  digitalWrite(wheel_right[0], LOW); 
-  digitalWrite(wheel_right[1], LOW);
-  digitalWrite(arm_left[0], LOW); 
-  digitalWrite(arm_left[1], LOW); 
-  digitalWrite(arm_right[0], LOW); 
-  digitalWrite(arm_right[1], LOW);
+  motors = 0;
 }
 
 // vim:cin:ai:sts=2 sw=2 ft=cpp
