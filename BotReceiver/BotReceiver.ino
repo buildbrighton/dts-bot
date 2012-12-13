@@ -22,11 +22,13 @@ RF24 radio(9,10);
 // Radio pipe addresses for the 2 nodes to communicate.
 const uint64_t addr = 0xFEFEFEFEE1LL;
 
-int wheel_left[]  = {11, 12};
-int wheel_right[] = {13, 14};
+//int wheel_left[]  = {11, 12};
+//int wheel_right[] = {13, 14};
+int wheel_left[]  = {3, 4};
+int wheel_right[] = {A0, A1};
 
-int arm_left[]  = {16, 17};
-int arm_right[] = {18, 19};
+int arm_left[]  = {A2, A3};
+int arm_right[] = {A4, A5};
 
 enum eMode{
   IDLE = 0,
@@ -139,13 +141,13 @@ void loop(void)
   if ( mode == SYNC ) {
      if ( last_mode == IDLE) {
        Serial.println("moving robot");
-       move_robot();
      }
+     move_robot();
   } else {
      if ( last_mode == SYNC ) {
        Serial.println("stopping robot");
-       stop_robot();
      }
+     stop_robot();
   }
   
   counter++;
@@ -179,7 +181,7 @@ void both_eyes_red() {
 void move_robot() {
   //Serial.print("delay: ");
   //Serial.println(millis() - loop_time);
-  return;
+  //return;
   if ( millis() - last_tick_millis > tick_duration ) {
     //Serial.println("tick");
     last_tick_millis = millis();
@@ -244,7 +246,7 @@ void move_robot() {
 }
 
 void stop_robot() {
-  return;
+  //return;
   digitalWrite(wheel_left[0], LOW); 
   digitalWrite(wheel_left[1], LOW); 
   digitalWrite(wheel_right[0], LOW); 
