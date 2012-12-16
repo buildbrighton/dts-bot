@@ -1,4 +1,9 @@
 
+//#define DISABLE_MOTORS 
+//#define DISABLE_LEDS 
+//#define DISABLE_WHEELS
+#define DISABLE_ARMS
+
 //#include <SoftwareSerial.h>
 #include <SPI.h>
 #include "nRF24L01.h"
@@ -38,22 +43,6 @@ const int dataPin = 7;
 uint8_t leds = 0xff;  // common anode LEDs, 1 == off
 uint8_t motors = 0x00;
 
-void registerWrite(uint8_t first, uint8_t last) {
-  // the bits you want to send. Use an unsigned int,
-  // so you can use all 16 bits:
-  unsigned int bitsToSend = 0;    
-
-  // turn off the output
-  digitalWrite(latchPin, LOW);
-
-  // shift the bytes out:
-  shiftOut(dataPin, clockPin, MSBFIRST, first);
-  shiftOut(dataPin, clockPin, MSBFIRST, last);
-
-  // turn on the output 
-  digitalWrite(latchPin, HIGH);
-}
-
 void setup(void)
 {
   // debugging
@@ -72,29 +61,30 @@ void setup(void)
   Serial.println("Initialising LEDs and Motors");
   registerWrite(leds, motors);
 
+  bothEyesRed();
+  registerWrite(leds, motors);
+  delay(1000);
 
   //
   // Setup and configure rf radio
   //
   Serial.println("Initialising RF24");
 
-  radio.begin();
-  radio.setChannel(0x69);
-  radio.setPayloadSize(6);
-  //radio.disableCRC();
+  initRadio();
+  startRadio();
 
-  //
-  // Open pipes to other nodes for communication
-  //
-
-  //setup radio
-  radio.openReadingPipe(1,addr);
-  radio.startListening();
+  bothEyesGreen();
+  registerWrite(leds, motors);
+  delay(1000);
 
   //
   // Dump the configuration of the rf unit for debugging
   //
   radio.printDetails();
+
+  bothEyesBlue();
+  registerWrite(leds, motors);
+  delay(1000);
 
 }
 
@@ -117,9 +107,10 @@ int statusTimer = 0;
 
 void loop(void)
 {
+
   if ( counter % 10000 == 0 ) { 
-     Serial.println("tick: counter % 10000 == 0");
-     counter = 0;
+    Serial.println("tick: counter % 10000 == 0");
+    counter = 0;
   }
   if ( counter % 10000 < 5000 and statusTimer == 0 ) {
     bothEyesRed();
@@ -173,8 +164,9 @@ void loop(void)
   last_mode = mode;
 
   if (millis() - lastMsg > idleTime) {
-    if ( last_mode == SYNC )
-      Serial.println("timeout -- stopping robot");
+    if ( last_mode == SYNC ) {
+      handleTimeout();
+    }
     mode = IDLE;
   }
 
@@ -184,6 +176,14 @@ void loop(void)
   registerWrite(leds, motors);
 
 }
+ 
+void handleTimeout() {
+  Serial.println("timeout -- stopping robot");
+  bothEyesCyan();
+  statusTimer = 10000;
+  radio.printDetails();
+}
+
 void bothEyesRed() {
   leds = 0b01110111;
 }
@@ -194,6 +194,22 @@ void bothEyesGreen() {
 
 void bothEyesBlue() {
   leds = 0b11011101;
+}
+
+void bothEyesCyan() {
+  leds = 0b10011001;
+}
+
+void bothEyesPurple() {
+  leds = 0b01010101;
+}
+
+void bothEyesYellow() {
+  leds = 0b10011001;
+}
+
+void bothEyesWhite() {
+  leds = 0b00010001;
 }
 
 void move_robot() {
@@ -301,6 +317,55 @@ void rightArmStop() {
 void stopRobot() {
   //return;
   motors = 0;
+}
+
+void registerWrite(uint8_t first, uint8_t last) {
+  // the bits you want to send. Use an unsigned int,
+  // so you can use all 16 bits:
+  unsigned int bitsToSend = 0;    
+
+#ifdef DISABLE_MOTORS
+  last = 0;
+#endif
+
+#ifdef DISABLE_LEDS
+  first = 0xff;
+#endif
+
+#ifdef DISABLE_ARMS
+  last &= 0b00110011;
+#endif
+
+#ifdef DISABLE_WHEELS
+  last &= 0b11001100;
+#endif
+
+  // turn off the output
+  digitalWrite(latchPin, LOW);
+
+  // shift the bytes out:
+  shiftOut(dataPin, clockPin, MSBFIRST, first);
+  shiftOut(dataPin, clockPin, MSBFIRST, last);
+
+  // turn on the output 
+  digitalWrite(latchPin, HIGH);
+}
+
+void initRadio() {
+
+  radio.begin();
+  radio.setChannel(0x69);
+  radio.setPayloadSize(6);
+
+}
+
+
+void startRadio() {
+
+  //setup radio
+  radio.openReadingPipe(1,addr);
+  radio.startListening();
+
 }
 
 // vim:cin:ai:sts=2 sw=2 ft=cpp
