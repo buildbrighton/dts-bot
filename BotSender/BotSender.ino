@@ -12,7 +12,7 @@
 RF24 radio(9,10);
 
 // id, leds, left wheel, right wheel, left arm, right arm
-signed char msg[] = { 1, 2, 3, 4, 5, 6};
+signed char msg[] = { 11, 12, 13, 14, 15, 16};
 
 #define NUM_ROBOTS 2
 signed char leds[NUM_ROBOTS];
@@ -183,17 +183,17 @@ void loop(void)
   if (statusTimer > 0)
       statusTimer--;
 
-  counter++;
 
   // repeatedly send commands to robots
-  if ( counter % 10 == 0 ) {
-    for ( uint8_t i; i<NUM_ROBOTS; i++ ) {
-      if ( robotEnable[i] ) {
+  if ( counter % 100 == 0 ) {
+    for ( uint8_t i=0; i<NUM_ROBOTS; i++ ) {
+      if ( robotEnable[i] == 1 ) {
         sendBot(i);
       }
     }
   }
 
+  counter++;
   delay(1);
 
 }
@@ -202,7 +202,7 @@ void setLeds(uint8_t id, byte eyes){
   leds[id] = eyes;
 }
 
-void setWheels(uint8_t id, char left, char right){
+void setWheels(uint8_t id, char left, char right) {
   wheelL[id] = left;
   wheelR[id] = right;
 }
@@ -232,12 +232,15 @@ void statusBlue() {
 
 void sendBot(uint8_t id){
 
+  Serial.print(id, DEC);
+  Serial.println(": Sending data");
+
   msg[0] = id;
   msg[1] = leds[id];
-  msg[3] = wheelL[id];
-  msg[4] = wheelR[id];
-  msg[5] = armL[id];
-  msg[6] = armR[id];
+  msg[2] = wheelL[id];
+  msg[3] = wheelR[id];
+  msg[4] = armL[id];
+  msg[5] = armR[id];
 
   bool ok = radio.write(msg, 6);
 #ifdef CHECK_RADIO_RECEIPT
@@ -278,6 +281,10 @@ void right(uint8_t id){
   Serial.print(id, DEC);
   Serial.println(" - Rotate right");
   setWheels(id, 127, -127);
+}
+
+void stop(uint8_t id){
+  setWheels(id, 0, 0);
 }
 
 void zero(uint8_t id){
